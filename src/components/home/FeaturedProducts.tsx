@@ -12,7 +12,10 @@ export default async function FeaturedProducts() {
     <section className="py-24 px-6 lg:px-12 max-w-7xl mx-auto">
       {/* Section header */}
       <div className="text-center mb-16">
-        <p className="text-xs tracking-[0.5em] uppercase mb-4" style={{ color: "#c9a84c" }}>
+        <p
+          className="text-xs tracking-[0.5em] uppercase mb-4"
+          style={{ color: "#c9a84c" }}
+        >
           The Collection
         </p>
         <h2 className="text-3xl sm:text-5xl font-extralight tracking-[0.1em] uppercase text-[#f5f0e8] mb-6">
@@ -39,6 +42,13 @@ export default async function FeaturedProducts() {
               />
               {/* Hover overlay */}
               <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a]/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+
+              {/* Hover CTA Name*/}
+              <div className="absolute top-50 left-0 right-0 flex justify-center opacity-0 group-hover:opacity-100 transition-all duration-500 translate-y-3 group-hover:translate-y-0">
+                <span className="text-2xl tracking-[0.3em] uppercase px-6 py-2 text-gold bg-black opacity-65 text-center">
+                  {product.name}
+                </span>
+              </div>
 
               {/* View product label on hover */}
               <div className="absolute bottom-6 left-0 right-0 flex justify-center opacity-0 group-hover:opacity-100 transition-all duration-500 translate-y-4 group-hover:translate-y-0">
@@ -67,7 +77,10 @@ export default async function FeaturedProducts() {
                 {product.tagline}
               </p>
               <div className="flex items-center justify-between mt-3 pt-3 border-t border-[#2a2a2a]">
-                <span className="text-sm font-light tracking-[0.1em]" style={{ color: "#c9a84c" }}>
+                <span
+                  className="text-sm font-light tracking-[0.1em]"
+                  style={{ color: "#c9a84c" }}
+                >
                   ৳ {product.price.toLocaleString()}
                 </span>
                 <span className="text-xs tracking-[0.2em] uppercase text-[#f5f0e8]/30 group-hover:text-[#c9a84c] transition-colors duration-300">

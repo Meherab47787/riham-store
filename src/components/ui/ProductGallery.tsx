@@ -21,7 +21,7 @@ export default function ProductGallery({ images, productName }: ProductGalleryPr
           fill
           className="object-cover transition-all duration-500"
           priority
-          quality={90}
+          quality={75}
         />
       </div>
 

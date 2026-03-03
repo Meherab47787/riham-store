@@ -9,10 +9,7 @@ interface ProductCardProps {
 
 export default function ProductCard({ product, index }: ProductCardProps) {
   return (
-    <Link
-      href={`/shop/${product.slug}`}
-      className="group flex flex-col"
-    >
+    <Link href={`/shop/${product.slug}`} className="group flex flex-col">
       {/* Image */}
       <div className="relative aspect-[3/4] overflow-hidden bg-[#111111] mb-5">
         <Image
@@ -29,10 +26,16 @@ export default function ProductCard({ product, index }: ProductCardProps) {
             View Details
           </span>
         </div>
+        {/* Hover CTA Name*/}
+        <div className="absolute top-40 left-0 right-0 flex justify-center opacity-0 group-hover:opacity-100 transition-all duration-500 translate-y-3 group-hover:translate-y-0">
+          <span className=" tracking-[0.3em] uppercase px-6 py-2 text-gold bg-black opacity-65 text-center">
+            {product.name}
+          </span>
+        </div>
 
         {/* Number badge */}
         <div className="absolute top-4 left-4">
-          <span className="text-[10px] tracking-[0.2em] text-[#c9a84c]/50">
+          <span className="text-[10px] tracking-[0.2em] text-gold/50">
             {String(index + 1).padStart(2, "0")}
           </span>
         </div>

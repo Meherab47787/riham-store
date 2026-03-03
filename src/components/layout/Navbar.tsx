@@ -50,7 +50,7 @@ export default function Navbar({ user }: NavbarProps) {
           <Link href="/" className="flex items-center gap-3">
             <div className="relative w-12 h-12">
               <Image
-                src="/images/logo/riham-logo.png"
+                src="/images/logo/riham-flag.svg"
                 alt="Riham"
                 fill
                 className="object-contain"

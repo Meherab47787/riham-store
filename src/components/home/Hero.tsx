@@ -28,7 +28,7 @@ export default function Hero() {
           fill
           className="object-cover opacity-25"
           priority
-          quality={90}
+          quality={75}
         />
       </div>
 
