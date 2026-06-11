@@ -40,7 +40,7 @@ export default function Navbar({ user }: NavbarProps) {
     <header
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
         scrolled
-          ? "bg-[#0a0a0a]/95 backdrop-blur-md border-b border-[#c9a84c]/20"
+          ? "bg-obsidian/95 backdrop-blur-md border-b border-gold/20"
           : "bg-transparent"
       }`}
     >
