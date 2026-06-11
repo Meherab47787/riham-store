@@ -2,17 +2,22 @@
 
 import { useTransition } from "react";
 import { logout } from "@/actions/auth";
+import { Button } from "@/components/ui/button";
+import { LogOut } from "lucide-react";
 
 export default function LogoutButton() {
   const [isPending, startTransition] = useTransition();
 
   return (
-    <button
+    <Button
+      variant="ghost"
+      size="xs"
       onClick={() => startTransition(() => logout())}
       disabled={isPending}
-      className="text-xs tracking-[0.2em] uppercase text-[#f5f0e8]/30 hover:text-red-400 transition-colors duration-300 disabled:opacity-50"
+      className="gap-2 text-foreground/30 hover:text-destructive"
     >
+      <LogOut className="h-3 w-3" />
       {isPending ? "Signing out..." : "Sign Out"}
-    </button>
+    </Button>
   );
 }

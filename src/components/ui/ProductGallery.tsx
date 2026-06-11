@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import { cn } from "@/lib/utils";
 
 interface ProductGalleryProps {
   images: string[];
@@ -14,7 +15,7 @@ export default function ProductGallery({ images, productName }: ProductGalleryPr
   return (
     <div className="flex flex-col gap-4">
       {/* Main image */}
-      <div className="relative aspect-square overflow-hidden bg-[#111111]">
+      <div className="relative aspect-square overflow-hidden bg-charcoal">
         <Image
           src={images[activeIndex]}
           alt={`${productName} - Image ${activeIndex + 1}`}
@@ -32,11 +33,12 @@ export default function ProductGallery({ images, productName }: ProductGalleryPr
             <button
               key={i}
               onClick={() => setActiveIndex(i)}
-              className={`relative aspect-square overflow-hidden transition-all duration-300 ${
+              className={cn(
+                "relative aspect-square overflow-hidden transition-all duration-300",
                 i === activeIndex
-                  ? "ring-1 ring-[#c9a84c] opacity-100"
+                  ? "ring-1 ring-primary opacity-100"
                   : "opacity-40 hover:opacity-70"
-              }`}
+              )}
             >
               <Image
                 src={img}

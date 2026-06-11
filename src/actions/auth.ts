@@ -1,12 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import {
-  hashPassword,
-  verifyPassword,
-  createSession,
-  deleteSession,
-} from "@/lib/auth";
+import { hashPassword, verifyPassword, createSession, deleteSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
@@ -38,7 +33,13 @@ export async function register(
     data: { name, email, password: hashed, phone: phone || null },
   });
 
-  await createSession(user.id, user.email, user.name);
+  await createSession({
+    userId: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role,
+    permissions: [],
+  });
   revalidatePath("/", "layout");
   redirect("/");
 }
@@ -54,7 +55,10 @@ export async function login(
     return { error: "Email and password are required." };
   }
 
-  const user = await prisma.user.findUnique({ where: { email } });
+  const user = await prisma.user.findUnique({
+    where: { email },
+    include: { adminRole: true },
+  });
   if (!user) {
     return { error: "Invalid email or password." };
   }
@@ -64,9 +68,15 @@ export async function login(
     return { error: "Invalid email or password." };
   }
 
-  await createSession(user.id, user.email, user.name);
+  await createSession({
+    userId: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role,
+    permissions: user.adminRole?.permissions ?? [],
+  });
   revalidatePath("/", "layout");
-  redirect("/");
+  redirect(user.role === "SUPER_ADMIN" ? "/admin" : "/");
 }
 
 export async function logout() {

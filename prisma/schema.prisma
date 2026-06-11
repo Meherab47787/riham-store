@@ -32,30 +32,71 @@ model Product {
 }
 
 model User {
-  id        String   @id @default(cuid())
+  id        String     @id @default(cuid())
   name      String
-  email     String   @unique
+  email     String     @unique
   password  String
   phone     String?
-  role      Role     @default(CUSTOMER)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  role      Role       @default(CUSTOMER)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
   Cart      Cart?
   orders    Order[]
+  adminRole AdminRole?
+}
+
+model AdminRole {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String   @default("Admin")
+  permissions String[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdById String?
+}
+
+model StoreSettings {
+  id              String   @id @default("singleton")
+  storeName       String   @default("Riham Fragrances")
+  storeEmail      String   @default("")
+  phoneNumber     String   @default("")
+  address         String   @default("")
+  freeShippingMin Int      @default(3000)
+  currency        String   @default("BDT")
+  currencySymbol  String   @default("৳")
+  taxRate         Float    @default(0)
+  updatedAt       DateTime @updatedAt
 }
 
 model Order {
-  id        String      @id @default(cuid())
-  userId    String
-  total     Int
-  status    OrderStatus @default(PENDING)
-  address   String?
-  phone     String?
-  note      String?
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
-  user      User        @relation(fields: [userId], references: [id])
-  items     OrderItem[]
+  id          String      @id @default(cuid())
+  userId      String
+  total       Int
+  discount    Int         @default(0)
+  couponCode  String?
+  status      OrderStatus @default(PENDING)
+  address     String?
+  phone       String?
+  note        String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  user        User        @relation(fields: [userId], references: [id])
+  items       OrderItem[]
+}
+
+model Coupon {
+  id            String       @id @default(cuid())
+  code          String       @unique
+  discountType  DiscountType
+  discountValue Int
+  minOrder      Int          @default(0)
+  maxUses       Int?
+  usedCount     Int          @default(0)
+  active        Boolean      @default(true)
+  expiresAt     DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 }
 
 model OrderItem {
@@ -91,6 +132,7 @@ model CartItem {
 enum Role {
   CUSTOMER
   ADMIN
+  SUPER_ADMIN
 }
 
 enum OrderStatus {
@@ -99,4 +141,9 @@ enum OrderStatus {
   SHIPPED
   DELIVERED
   CANCELLED
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED
 }

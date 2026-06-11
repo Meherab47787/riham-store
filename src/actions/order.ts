@@ -18,6 +18,8 @@ export async function createOrder(
   const address = (formData.get("address") as string)?.trim();
   const note = (formData.get("note") as string)?.trim();
   const cartItemsJson = formData.get("cartItems") as string;
+  const couponCode = (formData.get("couponCode") as string)?.trim().toUpperCase() || null;
+  const clientDiscount = parseInt(formData.get("discountAmount") as string, 10) || 0;
 
   if (!phone || !address) {
     return { error: "Phone number and delivery address are required." };
@@ -46,16 +48,44 @@ export async function createOrder(
   }
 
   const priceMap = new Map(products.map((p) => [p.id, p.price]));
-
-  const total = cartItems.reduce(
+  const subtotal = cartItems.reduce(
     (sum, item) => sum + (priceMap.get(item.productId) ?? 0) * item.quantity,
     0
   );
+
+  // Re-validate coupon server-side so discount can't be spoofed
+  let discount = 0;
+  let validatedCouponCode: string | null = null;
+
+  if (couponCode) {
+    const coupon = await prisma.coupon.findUnique({ where: { code: couponCode } });
+    if (
+      coupon &&
+      coupon.active &&
+      (!coupon.expiresAt || coupon.expiresAt >= new Date()) &&
+      (coupon.maxUses === null || coupon.usedCount < coupon.maxUses) &&
+      subtotal >= coupon.minOrder
+    ) {
+      discount =
+        coupon.discountType === "PERCENTAGE"
+          ? Math.round((subtotal * coupon.discountValue) / 100)
+          : Math.min(coupon.discountValue, subtotal);
+
+      // Sanity check: client-computed discount should match server (allow ±1 for rounding)
+      if (Math.abs(discount - clientDiscount) <= 1) {
+        validatedCouponCode = coupon.code;
+      }
+    }
+  }
+
+  const total = Math.max(0, subtotal - discount);
 
   const order = await prisma.order.create({
     data: {
       userId: session.userId,
       total,
+      discount,
+      couponCode: validatedCouponCode,
       phone,
       address,
       note: note || null,
@@ -69,7 +99,14 @@ export async function createOrder(
     },
   });
 
-  revalidatePath("/account");
+  // Increment coupon usage after successful order
+  if (validatedCouponCode) {
+    await prisma.coupon.update({
+      where: { code: validatedCouponCode },
+      data: { usedCount: { increment: 1 } },
+    });
+  }
 
+  revalidatePath("/account");
   redirect(`/account/orders/${order.id}`);
 }

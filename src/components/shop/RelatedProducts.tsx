@@ -1,6 +1,8 @@
 import Link from "next/link";
 import Image from "next/image";
 import { prisma } from "@/lib/prisma";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 
 interface RelatedProductsProps {
   currentSlug: string;
@@ -16,33 +18,26 @@ export default async function RelatedProducts({ currentSlug }: RelatedProductsPr
   if (related.length === 0) return null;
 
   return (
-    <section className="py-20 px-6 lg:px-12 border-t border-[#1a1a1a]">
+    <section className="py-20 px-6 lg:px-12 border-t border-border">
       <div className="max-w-7xl mx-auto">
         <div className="flex items-center justify-between mb-12">
           <div>
-            <p className="text-xs tracking-[0.4em] uppercase mb-2" style={{ color: "#c9a84c" }}>
-              You May Also Like
-            </p>
-            <h2 className="text-2xl font-extralight tracking-[0.1em] uppercase text-[#f5f0e8]">
+            <p className="text-xs tracking-[0.4em] uppercase mb-2 text-primary">You May Also Like</p>
+            <h2 className="text-2xl font-extralight tracking-widest uppercase text-foreground">
               Related Scents
             </h2>
           </div>
-          <Link
-            href="/shop"
-            className="text-xs tracking-[0.2em] uppercase text-[#f5f0e8]/30 hover:text-[#c9a84c] transition-colors duration-300"
-          >
-            View All →
-          </Link>
+          <Button variant="ghost" size="sm" asChild>
+            <Link href="/shop">View All →</Link>
+          </Button>
         </div>
+
+        <Separator gold className="mb-12" />
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
           {related.map((product) => (
-            <Link
-              key={product.id}
-              href={`/shop/${product.slug}`}
-              className="group flex flex-col"
-            >
-              <div className="relative aspect-[3/4] overflow-hidden bg-[#111111] mb-4">
+            <Link key={product.id} href={`/shop/${product.slug}`} className="group flex flex-col">
+              <div className="relative aspect-3/4 overflow-hidden bg-charcoal mb-4">
                 <Image
                   src={product.images[0]}
                   alt={product.name}
@@ -50,15 +45,11 @@ export default async function RelatedProducts({ currentSlug }: RelatedProductsPr
                   className="object-cover transition-all duration-700 group-hover:scale-105 opacity-80 group-hover:opacity-60"
                 />
               </div>
-              <p className="text-[10px] tracking-[0.3em] uppercase text-[#c9a84c]/60 mb-1">
-                {product.gender}
-              </p>
-              <h3 className="text-sm font-light tracking-[0.15em] uppercase text-[#f5f0e8] group-hover:text-[#c9a84c] transition-colors duration-300 mb-2">
+              <p className="text-[10px] tracking-[0.3em] uppercase text-primary/60 mb-1">{product.gender}</p>
+              <h3 className="text-sm font-light tracking-[0.15em] uppercase text-foreground group-hover:text-primary transition-colors duration-300 mb-2">
                 {product.name}
               </h3>
-              <span className="text-xs font-light" style={{ color: "#c9a84c" }}>
-                ৳ {product.price.toLocaleString()}
-              </span>
+              <span className="text-xs font-light text-primary">৳ {product.price.toLocaleString()}</span>
             </Link>
           ))}
         </div>

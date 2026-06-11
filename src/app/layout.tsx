@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { headers } from "next/headers";
 import "./globals.css";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
@@ -27,9 +28,20 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: Readonly<{ children: React.ReactNode }>) {
+  const headersList = await headers();
+  const isAdmin = headersList.get("x-is-admin") === "1";
+
+  if (isAdmin) {
+    return (
+      <html lang="en" className="scroll-smooth">
+        <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+          {children}
+        </body>
+      </html>
+    );
+  }
+
   const session = await getSession();
 
   return (
@@ -38,7 +50,11 @@ export default async function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col`}
       >
         <Navbar
-          user={session ? { name: session.name, email: session.email } : null}
+          user={
+            session
+              ? { name: session.name, email: session.email, role: session.role }
+              : null
+          }
         />
         <main className="flex-1">{children}</main>
         <Footer />

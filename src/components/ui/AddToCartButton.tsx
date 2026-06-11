@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { addToCart } from "@/lib/cart-store";
+import { Button } from "@/components/ui/button";
+import { ShoppingBag, Check } from "lucide-react";
 
 interface Props {
   productId: string;
@@ -24,28 +26,30 @@ export default function AddToCartButton({ productId, slug, name, price, image, i
 
   if (!inStock) {
     return (
-      <button
-        disabled
-        className="flex-1 text-center py-4 text-xs tracking-[0.3em] uppercase font-light border border-[#2a2a2a] text-[#f5f0e8]/25 cursor-not-allowed"
-      >
+      <Button variant="secondary" size="lg" disabled className="flex-1 gap-2">
         Out of Stock
-      </button>
+      </Button>
     );
   }
 
   return (
-    <button
+    <Button
       onClick={handleClick}
       disabled={added}
-      className="flex-1 text-center py-4 text-xs tracking-[0.3em] uppercase font-light transition-all duration-300 disabled:opacity-75"
-      style={{
-        background: added
-          ? "linear-gradient(135deg, #2d6a4f 0%, #40916c 100%)"
-          : "linear-gradient(135deg, #c9a84c 0%, #e2c97e 50%, #a07c2a 100%)",
-        color: "#0a0a0a",
-      }}
+      size="lg"
+      className={`flex-1 gap-2 ${added ? "bg-linear-to-br from-emerald-700 to-emerald-600 hover:opacity-100" : ""}`}
     >
-      {added ? "✓ Added to Cart" : "Add to Cart"}
-    </button>
+      {added ? (
+        <>
+          <Check className="h-3.5 w-3.5" />
+          Added to Cart
+        </>
+      ) : (
+        <>
+          <ShoppingBag className="h-3.5 w-3.5" />
+          Add to Cart
+        </>
+      )}
+    </Button>
   );
 }

@@ -12,6 +12,8 @@ export type SessionPayload = {
   userId: string;
   email: string;
   name: string;
+  role: string;
+  permissions: string[];
 };
 
 export async function hashPassword(password: string) {
@@ -22,12 +24,14 @@ export async function verifyPassword(password: string, hash: string) {
   return bcrypt.compare(password, hash);
 }
 
-export async function createSession(
-  userId: string,
-  email: string,
-  name: string
-) {
-  const token = await new SignJWT({ userId, email, name })
+export async function createSession(payload: SessionPayload) {
+  const token = await new SignJWT({
+    userId: payload.userId,
+    email: payload.email,
+    name: payload.name,
+    role: payload.role,
+    permissions: payload.permissions,
+  })
     .setProtectedHeader({ alg: "HS256" })
     .setExpirationTime("7d")
     .sign(SECRET);
@@ -43,13 +47,13 @@ export async function createSession(
 
   jar.set(COOKIE, token, cookieOpts);
 
-  // Plain cookies for client-side reading (navbar state)
-  jar.set(USER_COOKIE, encodeURIComponent(JSON.stringify({ name, email })), {
-    httpOnly: false,
-    sameSite: "lax",
-    maxAge: 7 * 24 * 60 * 60,
-    path: "/",
-  });
+  jar.set(
+    USER_COOKIE,
+    encodeURIComponent(
+      JSON.stringify({ name: payload.name, email: payload.email, role: payload.role })
+    ),
+    { httpOnly: false, sameSite: "lax", maxAge: 7 * 24 * 60 * 60, path: "/" }
+  );
 }
 
 export async function getSession(): Promise<SessionPayload | null> {
@@ -58,7 +62,13 @@ export async function getSession(): Promise<SessionPayload | null> {
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, SECRET);
-    return payload as unknown as SessionPayload;
+    return {
+      userId: payload.userId as string,
+      email: payload.email as string,
+      name: payload.name as string,
+      role: (payload.role as string) ?? "CUSTOMER",
+      permissions: (payload.permissions as string[]) ?? [],
+    };
   } catch {
     return null;
   }
@@ -68,4 +78,22 @@ export async function deleteSession() {
   const jar = await cookies();
   jar.delete(COOKIE);
   jar.delete(USER_COOKIE);
+}
+
+export function hasPermission(
+  session: SessionPayload | null,
+  permission: string
+): boolean {
+  if (!session) return false;
+  if (session.role === "SUPER_ADMIN") return true;
+  return session.permissions.includes(permission);
+}
+
+export function isAdmin(session: SessionPayload | null): boolean {
+  if (!session) return false;
+  return session.role === "ADMIN" || session.role === "SUPER_ADMIN";
+}
+
+export function isSuperAdmin(session: SessionPayload | null): boolean {
+  return session?.role === "SUPER_ADMIN";
 }
