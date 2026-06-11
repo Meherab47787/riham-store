@@ -1,147 +1,165 @@
-import type { Metadata } from "next";
-import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { getSession } from "@/lib/auth";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
-import { TrendingUp, ShoppingBag, Package, Users } from "lucide-react";
 
-export const metadata: Metadata = { title: "Dashboard" };
-
-const STATUS_BADGE: Record<string, "warning" | "default" | "secondary" | "success" | "destructive"> = {
-  PENDING:   "warning",
+const STATUS_BADGE: Record<string, "default" | "secondary" | "destructive" | "outline" | "warning" | "success"> = {
+  PENDING: "warning",
   CONFIRMED: "default",
-  SHIPPED:   "secondary",
+  SHIPPED: "default",
   DELIVERED: "success",
   CANCELLED: "destructive",
 };
 
-export default async function AdminDashboard() {
-  const session = await getSession();
+export default async function AdminDashboardPage() {
+  const [
+    totalProducts,
+    totalOrders,
+    pendingOrders,
+    totalCustomers,
+    revenueResult,
+    recentOrders,
+    recentProducts,
+  ] = await Promise.all([
+    prisma.product.count(),
+    prisma.order.count(),
+    prisma.order.count({ where: { status: "PENDING" } }),
+    prisma.user.count({ where: { role: "CUSTOMER" } }),
+    prisma.order.aggregate({
+      _sum: { total: true },
+      where: { status: { not: "CANCELLED" } },
+    }),
+    prisma.order.findMany({
+      take: 5,
+      orderBy: { createdAt: "desc" },
+      include: { user: { select: { name: true } } },
+    }),
+    prisma.product.findMany({
+      take: 5,
+      orderBy: { createdAt: "desc" },
+      select: { id: true, name: true, price: true, inStock: true },
+    }),
+  ]);
 
-  const [revenue, totalOrders, totalProducts, totalCustomers, recentOrders, pendingCount] =
-    await Promise.all([
-      prisma.order.aggregate({ _sum: { total: true }, where: { status: { not: "CANCELLED" } } }),
-      prisma.order.count(),
-      prisma.product.count(),
-      prisma.user.count({ where: { role: "CUSTOMER" } }),
-      prisma.order.findMany({
-        take: 8,
-        orderBy: { createdAt: "desc" },
-        include: {
-          user: { select: { name: true, email: true } },
-          items: { include: { product: { select: { name: true } } } },
-        },
-      }),
-      prisma.order.count({ where: { status: "PENDING" } }),
-    ]);
+  const totalRevenue = revenueResult._sum.total ?? 0;
 
   const stats = [
-    { label: "Total Revenue", value: `৳ ${(revenue._sum.total ?? 0).toLocaleString()}`, sub: "Excluding cancelled", icon: <TrendingUp className="h-5 w-5 text-primary" /> },
-    { label: "Total Orders", value: totalOrders.toLocaleString(), sub: `${pendingCount} pending`, icon: <ShoppingBag className="h-5 w-5 text-blue-400" /> },
-    { label: "Products", value: totalProducts.toLocaleString(), sub: "In catalogue", icon: <Package className="h-5 w-5 text-purple-400" /> },
-    { label: "Customers", value: totalCustomers.toLocaleString(), sub: "Registered accounts", icon: <Users className="h-5 w-5 text-emerald-400" /> },
+    { label: "Total Products", value: totalProducts },
+    { label: "Total Orders", value: totalOrders },
+    { label: "Pending Orders", value: pendingOrders },
+    { label: "Total Revenue", value: `৳${totalRevenue.toLocaleString()}` },
+    { label: "Total Customers", value: totalCustomers },
   ];
 
   return (
     <div className="p-8">
-      <div className="mb-8">
-        <p className="text-xs tracking-[0.4em] uppercase text-primary/60 mb-1">Overview</p>
-        <h1 className="text-2xl font-extralight tracking-widest text-foreground">
-          Welcome back, {session?.name.split(" ")[0]}
-        </h1>
+      {/* Header */}
+      <div className="mb-10">
+        <p className="text-[10px] tracking-[0.4em] uppercase text-primary/60 mb-2">Command Center</p>
+        <h1 className="text-3xl font-extralight tracking-[0.2em] uppercase text-foreground">Dashboard</h1>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-10">
-        {stats.map((s) => (
-          <Card key={s.label}>
-            <CardContent className="p-5">
-              <div className="flex items-start justify-between mb-3">
-                <p className="text-xs tracking-[0.2em] uppercase text-foreground/40">{s.label}</p>
-                {s.icon}
-              </div>
-              <p className="text-2xl font-extralight tracking-tight mb-1 text-foreground">{s.value}</p>
-              <p className="text-[11px] text-foreground/25">{s.sub}</p>
-            </CardContent>
-          </Card>
+      {/* Stat Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-12">
+        {stats.map((stat) => (
+          <div
+            key={stat.label}
+            className="bg-charcoal border border-border p-5"
+          >
+            <p className="text-[10px] tracking-[0.3em] uppercase text-foreground/30 mb-2">{stat.label}</p>
+            <p className="text-2xl font-extralight text-foreground">{stat.value}</p>
+          </div>
         ))}
       </div>
 
-      {/* Quick Actions */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-10">
-        {[
-          { href: "/admin/products/new", label: "Add Product" },
-          { href: "/admin/orders", label: "View Orders" },
-          { href: "/admin/customers", label: "Customers" },
-          { href: "/admin/reports", label: "Reports" },
-        ].map((a) => (
-          <Button key={a.href} variant="secondary" size="sm" asChild className="justify-center">
-            <Link href={a.href}>{a.label}</Link>
-          </Button>
-        ))}
-      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Recent Orders */}
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-[10px] tracking-[0.3em] uppercase text-foreground/40">Recent Orders</p>
+            <Link href="/admin/orders" className="text-[10px] tracking-[0.2em] uppercase text-primary hover:text-primary/70 transition-colors">
+              View All →
+            </Link>
+          </div>
+          <div className="border border-border">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="text-left px-4 py-3 text-[10px] tracking-[0.2em] uppercase text-foreground/30 font-normal">Order</th>
+                  <th className="text-left px-4 py-3 text-[10px] tracking-[0.2em] uppercase text-foreground/30 font-normal">Customer</th>
+                  <th className="text-left px-4 py-3 text-[10px] tracking-[0.2em] uppercase text-foreground/30 font-normal">Total</th>
+                  <th className="text-left px-4 py-3 text-[10px] tracking-[0.2em] uppercase text-foreground/30 font-normal">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentOrders.map((order) => (
+                  <tr key={order.id} className="border-b border-border last:border-0 hover:bg-white/2 transition-colors">
+                    <td className="px-4 py-3">
+                      <Link href={`/admin/orders/${order.id}`} className="text-xs font-mono text-primary hover:text-primary/70">
+                        #{order.id.slice(-8).toUpperCase()}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3 text-xs font-light text-foreground/60">{order.user?.name ?? "—"}</td>
+                    <td className="px-4 py-3 text-xs font-light text-foreground/80">৳{order.total.toLocaleString()}</td>
+                    <td className="px-4 py-3">
+                      <Badge variant={STATUS_BADGE[order.status] ?? "default"} className="text-[9px] tracking-widest uppercase">
+                        {order.status}
+                      </Badge>
+                    </td>
+                  </tr>
+                ))}
+                {recentOrders.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-6 text-center text-xs text-foreground/30 tracking-widest uppercase">No orders yet</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
 
-      {/* Recent Orders */}
-      <Card>
-        <CardHeader className="flex-row items-center justify-between">
-          <CardTitle>Recent Orders</CardTitle>
-          <Button variant="ghost" size="xs" asChild>
-            <Link href="/admin/orders">View All →</Link>
-          </Button>
-        </CardHeader>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              {["Order ID", "Customer", "Items", "Total", "Status", "Date"].map((h) => (
-                <TableHead key={h}>{h}</TableHead>
-              ))}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {recentOrders.map((order) => (
-              <TableRow key={order.id}>
-                <TableCell>
-                  <Link
-                    href={`/admin/orders/${order.id}`}
-                    className="text-primary/70 hover:text-primary font-mono transition-colors"
-                  >
-                    #{order.id.slice(-8).toUpperCase()}
-                  </Link>
-                </TableCell>
-                <TableCell className="text-foreground/60">{order.user.name}</TableCell>
-                <TableCell className="text-foreground/40">
-                  {order.items.length} item{order.items.length !== 1 ? "s" : ""}
-                </TableCell>
-                <TableCell className="text-primary/80">৳ {order.total.toLocaleString()}</TableCell>
-                <TableCell>
-                  <Badge variant={STATUS_BADGE[order.status] ?? "secondary"}>
-                    {order.status}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-foreground/30">
-                  {new Date(order.createdAt).toLocaleDateString("en-GB", {
-                    day: "numeric",
-                    month: "short",
-                    year: "numeric",
-                  })}
-                </TableCell>
-              </TableRow>
-            ))}
-            {recentOrders.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center py-10 text-foreground/20 tracking-[0.2em] uppercase">
-                  No orders yet
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </Card>
+        {/* Recent Products */}
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-[10px] tracking-[0.3em] uppercase text-foreground/40">Recent Products</p>
+            <Link href="/admin/products" className="text-[10px] tracking-[0.2em] uppercase text-primary hover:text-primary/70 transition-colors">
+              View All →
+            </Link>
+          </div>
+          <div className="border border-border">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="text-left px-4 py-3 text-[10px] tracking-[0.2em] uppercase text-foreground/30 font-normal">Name</th>
+                  <th className="text-left px-4 py-3 text-[10px] tracking-[0.2em] uppercase text-foreground/30 font-normal">Price</th>
+                  <th className="text-left px-4 py-3 text-[10px] tracking-[0.2em] uppercase text-foreground/30 font-normal">Stock</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentProducts.map((product) => (
+                  <tr key={product.id} className="border-b border-border last:border-0 hover:bg-white/2 transition-colors">
+                    <td className="px-4 py-3">
+                      <Link href={`/admin/products/${product.id}`} className="text-xs text-foreground/80 hover:text-primary transition-colors">
+                        {product.name}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3 text-xs font-light text-foreground/60">৳{product.price.toLocaleString()}</td>
+                    <td className="px-4 py-3">
+                      <span className={`text-[10px] tracking-widest uppercase ${product.inStock ? "text-green-400/70" : "text-red-400/70"}`}>
+                        {product.inStock ? "In Stock" : "Out"}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+                {recentProducts.length === 0 && (
+                  <tr>
+                    <td colSpan={3} className="px-4 py-6 text-center text-xs text-foreground/30 tracking-widest uppercase">No products yet</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

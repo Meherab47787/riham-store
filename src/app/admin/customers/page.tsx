@@ -1,79 +1,58 @@
-import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
-import { Card } from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
-
-export const metadata: Metadata = { title: "Customers" };
 
 export default async function AdminCustomersPage() {
   const customers = await prisma.user.findMany({
     where: { role: "CUSTOMER" },
     orderBy: { createdAt: "desc" },
     include: {
-      orders: { select: { total: true, status: true } },
+      _count: { select: { orders: true } },
     },
   });
 
   return (
     <div className="p-8">
-      <div className="mb-8">
-        <p className="text-xs tracking-[0.4em] uppercase text-primary/60 mb-1">Management</p>
-        <h1 className="text-2xl font-extralight tracking-widest text-foreground">Customers</h1>
-        <p className="text-xs text-foreground/30 mt-1">{customers.length} registered accounts</p>
+      <div className="mb-10">
+        <p className="text-[10px] tracking-[0.4em] uppercase text-primary/60 mb-2">CRM</p>
+        <h1 className="text-3xl font-extralight tracking-[0.2em] uppercase text-foreground">Customers</h1>
       </div>
 
-      <Card>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              {["Name", "Email", "Phone", "Orders", "Total Spent", "Member Since"].map((h) => (
-                <TableHead key={h}>{h}</TableHead>
-              ))}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {customers.map((c) => {
-              const completedOrders = c.orders.filter((o) => o.status !== "CANCELLED");
-              const totalSpent = completedOrders.reduce((sum, o) => sum + o.total, 0);
-              return (
-                <TableRow key={c.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <Avatar className="w-7 h-7 rounded-none">
-                        <AvatarFallback className="rounded-none text-[10px] bg-primary/10 text-primary">
-                          {c.name.charAt(0).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="text-foreground/70">{c.name}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-foreground/40">{c.email}</TableCell>
-                  <TableCell className="text-foreground/30">{c.phone ?? "—"}</TableCell>
-                  <TableCell className="text-foreground/50">{c.orders.length}</TableCell>
-                  <TableCell className="text-primary/70">
-                    {totalSpent > 0 ? `৳ ${totalSpent.toLocaleString()}` : "—"}
-                  </TableCell>
-                  <TableCell className="text-foreground/30">
-                    {new Date(c.createdAt).toLocaleDateString("en-GB", {
-                      day: "numeric", month: "short", year: "numeric",
-                    })}
-                  </TableCell>
-                </TableRow>
-              );
-            })}
+      <div className="border border-border overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-border bg-charcoal">
+              <th className="text-left px-4 py-3 text-[10px] tracking-[0.2em] uppercase text-foreground/30 font-normal">Name</th>
+              <th className="text-left px-4 py-3 text-[10px] tracking-[0.2em] uppercase text-foreground/30 font-normal">Email</th>
+              <th className="text-left px-4 py-3 text-[10px] tracking-[0.2em] uppercase text-foreground/30 font-normal">Phone</th>
+              <th className="text-left px-4 py-3 text-[10px] tracking-[0.2em] uppercase text-foreground/30 font-normal">Orders</th>
+              <th className="text-left px-4 py-3 text-[10px] tracking-[0.2em] uppercase text-foreground/30 font-normal">Joined</th>
+            </tr>
+          </thead>
+          <tbody>
+            {customers.map((customer) => (
+              <tr key={customer.id} className="border-b border-border last:border-0 hover:bg-white/2 transition-colors bg-charcoal/50">
+                <td className="px-4 py-3 text-xs font-light text-foreground/80">{customer.name}</td>
+                <td className="px-4 py-3 text-xs font-light text-foreground/60">{customer.email}</td>
+                <td className="px-4 py-3 text-xs font-light text-foreground/50">{customer.phone ?? "—"}</td>
+                <td className="px-4 py-3 text-xs font-light text-foreground/60">{customer._count.orders}</td>
+                <td className="px-4 py-3 text-xs font-light text-foreground/40">
+                  {new Date(customer.createdAt).toLocaleDateString("en-GB", {
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric",
+                  })}
+                </td>
+              </tr>
+            ))}
             {customers.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center py-10 text-foreground/20 tracking-[0.2em] uppercase">
+              <tr>
+                <td colSpan={5} className="px-4 py-12 text-center text-xs text-foreground/30 tracking-widest uppercase bg-charcoal/50">
                   No customers yet
-                </TableCell>
-              </TableRow>
+                </td>
+              </tr>
             )}
-          </TableBody>
-        </Table>
-      </Card>
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

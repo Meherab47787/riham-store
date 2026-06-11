@@ -3,48 +3,44 @@ import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { getSession, isAdmin } from "@/lib/auth";
 
-function slugify(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
+const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
+const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/avif"];
+
+function slugify(name: string) {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
-const ALLOWED_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/avif"];
-const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
-
-export async function POST(request: NextRequest) {
+export async function POST(req: NextRequest) {
   const session = await getSession();
   if (!isAdmin(session)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const formData = await request.formData();
+  const formData = await req.formData();
   const productName = (formData.get("productName") as string)?.trim();
   const file = formData.get("file") as File | null;
 
-  if (!productName) return NextResponse.json({ error: "Product name is required." }, { status: 400 });
-  if (!file) return NextResponse.json({ error: "No file provided." }, { status: 400 });
+  if (!productName || !file) {
+    return NextResponse.json({ error: "productName and file are required." }, { status: 400 });
+  }
 
   if (!ALLOWED_TYPES.includes(file.type)) {
-    return NextResponse.json({ error: "Only JPG, PNG, WebP, and AVIF images are allowed." }, { status: 400 });
+    return NextResponse.json({ error: `File type ${file.type} is not allowed.` }, { status: 400 });
   }
 
   if (file.size > MAX_SIZE) {
-    return NextResponse.json({ error: "File size must be under 5 MB." }, { status: 400 });
+    return NextResponse.json({ error: "File exceeds 5 MB limit." }, { status: 400 });
   }
 
-  const folderSlug = slugify(productName);
-  const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
-  // Use original filename (slugified) + timestamp to avoid collisions
-  const baseName = slugify(file.name.replace(/\.[^.]+$/, "")) || "image";
-  const fileName = `${baseName}-${Date.now()}.${ext}`;
+  const slug = slugify(productName);
+  const ext = file.type.split("/")[1].replace("jpeg", "jpg");
+  const filename = `${Date.now()}.${ext}`;
+  const dir = path.join(process.cwd(), "public", "images", "products", slug);
+  const fullPath = path.join(dir, filename);
 
-  const uploadDir = path.join(process.cwd(), "public", "images", "products", folderSlug);
-  await mkdir(uploadDir, { recursive: true });
+  await mkdir(dir, { recursive: true });
+  const buffer = Buffer.from(await file.arrayBuffer());
+  await writeFile(fullPath, buffer);
 
-  const bytes = await file.arrayBuffer();
-  await writeFile(path.join(uploadDir, fileName), Buffer.from(bytes));
-
-  return NextResponse.json({ path: `/images/products/${folderSlug}/${fileName}` });
+  return NextResponse.json({ path: `/images/products/${slug}/${filename}` });
 }

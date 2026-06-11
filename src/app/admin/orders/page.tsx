@@ -1,110 +1,90 @@
-import type { Metadata } from "next";
-import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { Button } from "@/components/ui/button";
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
 
-export const metadata: Metadata = { title: "Orders" };
-
-const STATUS_BADGE: Record<string, "warning" | "default" | "secondary" | "success" | "destructive"> = {
-  PENDING:   "warning",
+const STATUS_BADGE: Record<string, "default" | "secondary" | "destructive" | "outline" | "warning" | "success"> = {
+  PENDING: "warning",
   CONFIRMED: "default",
-  SHIPPED:   "secondary",
+  SHIPPED: "default",
   DELIVERED: "success",
   CANCELLED: "destructive",
 };
 
-export default async function AdminOrdersPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ status?: string }>;
-}) {
-  const { status } = await searchParams;
-
+export default async function AdminOrdersPage() {
   const orders = await prisma.order.findMany({
-    where: status ? { status: status as never } : undefined,
     orderBy: { createdAt: "desc" },
     include: {
       user: { select: { name: true, email: true } },
-      items: { include: { product: { select: { name: true } } } },
+      _count: { select: { items: true } },
     },
   });
 
-  const statuses = ["All", "PENDING", "CONFIRMED", "SHIPPED", "DELIVERED", "CANCELLED"];
-
   return (
     <div className="p-8">
-      <div className="mb-8">
-        <p className="text-xs tracking-[0.4em] uppercase text-primary/60 mb-1">Management</p>
-        <h1 className="text-2xl font-extralight tracking-widest text-foreground">Orders</h1>
+      <div className="mb-10">
+        <p className="text-[10px] tracking-[0.4em] uppercase text-primary/60 mb-2">Commerce</p>
+        <h1 className="text-3xl font-extralight tracking-[0.2em] uppercase text-foreground">Orders</h1>
       </div>
 
-      <div className="flex gap-2 mb-6 flex-wrap items-center">
-        {statuses.map((s) => {
-          const active = s === "All" ? !status : status === s;
-          return (
-            <Button key={s} variant={active ? "default" : "ghost"} size="xs" asChild>
-              <Link href={s === "All" ? "/admin/orders" : `/admin/orders?status=${s}`}>
-                {s}
-              </Link>
-            </Button>
-          );
-        })}
-        <span className="ml-auto text-xs text-foreground/30">{orders.length} orders</span>
-      </div>
-
-      <Card>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              {["Order ID", "Customer", "Items", "Total", "Status", "Date", "Action"].map((h) => (
-                <TableHead key={h}>{h}</TableHead>
-              ))}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
+      <div className="border border-border overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-border bg-charcoal">
+              <th className="text-left px-4 py-3 text-[10px] tracking-[0.2em] uppercase text-foreground/30 font-normal">Order ID</th>
+              <th className="text-left px-4 py-3 text-[10px] tracking-[0.2em] uppercase text-foreground/30 font-normal">Customer</th>
+              <th className="text-left px-4 py-3 text-[10px] tracking-[0.2em] uppercase text-foreground/30 font-normal">Items</th>
+              <th className="text-left px-4 py-3 text-[10px] tracking-[0.2em] uppercase text-foreground/30 font-normal">Total</th>
+              <th className="text-left px-4 py-3 text-[10px] tracking-[0.2em] uppercase text-foreground/30 font-normal">Status</th>
+              <th className="text-left px-4 py-3 text-[10px] tracking-[0.2em] uppercase text-foreground/30 font-normal">Date</th>
+              <th className="text-left px-4 py-3 text-[10px] tracking-[0.2em] uppercase text-foreground/30 font-normal"></th>
+            </tr>
+          </thead>
+          <tbody>
             {orders.map((order) => (
-              <TableRow key={order.id}>
-                <TableCell className="font-mono text-primary/60">
-                  #{order.id.slice(-8).toUpperCase()}
-                </TableCell>
-                <TableCell>
-                  <p className="text-foreground/70">{order.user.name}</p>
-                  <p className="text-[10px] text-foreground/30">{order.user.email}</p>
-                </TableCell>
-                <TableCell className="text-foreground/40">{order.items.length}</TableCell>
-                <TableCell className="text-primary/70">৳ {order.total.toLocaleString()}</TableCell>
-                <TableCell>
-                  <Badge variant={STATUS_BADGE[order.status] ?? "secondary"}>
+              <tr key={order.id} className="border-b border-border last:border-0 hover:bg-white/2 transition-colors bg-charcoal/50">
+                <td className="px-4 py-3">
+                  <span className="text-xs font-mono text-foreground/60">
+                    #{order.id.slice(-8).toUpperCase()}
+                  </span>
+                </td>
+                <td className="px-4 py-3">
+                  <p className="text-xs font-light text-foreground/80">{order.user?.name ?? "—"}</p>
+                  <p className="text-[10px] text-foreground/30">{order.user?.email ?? ""}</p>
+                </td>
+                <td className="px-4 py-3 text-xs font-light text-foreground/50">{order._count.items}</td>
+                <td className="px-4 py-3 text-xs font-light text-foreground/80">৳{order.total.toLocaleString()}</td>
+                <td className="px-4 py-3">
+                  <Badge variant={STATUS_BADGE[order.status] ?? "default"} className="text-[9px] tracking-widest uppercase">
                     {order.status}
                   </Badge>
-                </TableCell>
-                <TableCell className="text-foreground/30">
+                </td>
+                <td className="px-4 py-3 text-xs font-light text-foreground/40">
                   {new Date(order.createdAt).toLocaleDateString("en-GB", {
-                    day: "numeric", month: "short", year: "numeric",
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric",
                   })}
-                </TableCell>
-                <TableCell>
-                  <Button variant="ghost" size="xs" asChild>
-                    <Link href={`/admin/orders/${order.id}`}>Manage →</Link>
-                  </Button>
-                </TableCell>
-              </TableRow>
+                </td>
+                <td className="px-4 py-3">
+                  <Link
+                    href={`/admin/orders/${order.id}`}
+                    className="text-[10px] tracking-[0.15em] uppercase text-primary hover:text-primary/70 transition-colors"
+                  >
+                    View →
+                  </Link>
+                </td>
+              </tr>
             ))}
             {orders.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={7} className="text-center py-10 text-foreground/20 tracking-[0.2em] uppercase">
-                  No orders found
-                </TableCell>
-              </TableRow>
+              <tr>
+                <td colSpan={7} className="px-4 py-12 text-center text-xs text-foreground/30 tracking-widest uppercase bg-charcoal/50">
+                  No orders yet
+                </td>
+              </tr>
             )}
-          </TableBody>
-        </Table>
-      </Card>
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

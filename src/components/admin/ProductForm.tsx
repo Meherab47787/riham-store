@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
 import { UploadCloud, X, Save } from "lucide-react";
+import NumericInput from "@/components/admin/NumericInput";
 
 type FormAction = (
   prevState: { error?: string; success?: boolean } | null,
@@ -110,7 +111,7 @@ export default function ProductForm({ action, product, submitLabel = "Save Produ
         {/* Price */}
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="price">Price (৳) *</Label>
-          <Input id="price" name="price" type="number" defaultValue={product?.price} required min={1} />
+          <NumericInput id="price" name="price" defaultValue={product?.price} required min={1} />
         </div>
 
         {/* Gender */}

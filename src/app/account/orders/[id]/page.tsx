@@ -1,170 +1,134 @@
-import type { Metadata } from "next";
-import Link from "next/link";
+import { Metadata } from "next";
+import { notFound, redirect } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { notFound, redirect } from "next/navigation";
-import ClearCart from "@/components/ui/ClearCart";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { ArrowLeft } from "lucide-react";
 
 interface Props {
   params: Promise<{ id: string }>;
 }
 
-export const metadata: Metadata = { title: "Order Confirmation" };
+export const metadata: Metadata = { title: "Order Details" };
 
-const STATUS_BADGE: Record<string, "warning" | "default" | "secondary" | "success" | "destructive"> = {
-  PENDING:   "warning",
+const statusVariant: Record<string, "default" | "secondary" | "success" | "warning" | "destructive"> = {
+  PENDING: "warning",
   CONFIRMED: "default",
-  SHIPPED:   "secondary",
+  SHIPPED: "default",
   DELIVERED: "success",
   CANCELLED: "destructive",
 };
 
-const STATUS_MESSAGES: Record<string, string> = {
-  PENDING:   "We've received your order and will contact you shortly to confirm.",
-  CONFIRMED: "Your order has been confirmed! We're preparing your fragrance.",
-  SHIPPED:   "Your order is on the way!",
-  DELIVERED: "Your order has been delivered. Thank you for choosing Riham!",
-  CANCELLED: "This order has been cancelled.",
-};
-
-export default async function OrderPage({ params }: Props) {
+export default async function OrderDetailPage({ params }: Props) {
   const { id } = await params;
   const session = await getSession();
   if (!session) redirect("/auth/login");
 
   const order = await prisma.order.findUnique({
     where: { id },
-    include: { items: { include: { product: true } } },
+    include: { items: { include: { product: { select: { name: true, images: true, slug: true } } } } },
   });
 
   if (!order || order.userId !== session.userId) notFound();
 
   return (
     <div className="min-h-screen pt-20">
-      <ClearCart />
+      <div className="max-w-3xl mx-auto px-6 lg:px-12 py-16">
+        {/* Back */}
+        <Link
+          href="/account"
+          className="inline-flex items-center gap-2 text-[10px] tracking-[0.25em] uppercase text-foreground/30 hover:text-primary transition-colors duration-200 mb-10"
+        >
+          <ArrowLeft className="w-3 h-3" />
+          My Orders
+        </Link>
 
-      {/* Header */}
-      <div className="py-16 px-6 text-center bg-charcoal border-b border-border">
-        <Separator gold className="max-w-xs mx-auto mb-6" />
-        <p className="text-xs tracking-[0.4em] uppercase mb-3 text-primary">
-          {order.status === "PENDING" ? "Order Placed" : "Order Details"}
-        </p>
-        <h1 className="text-3xl font-extralight tracking-[0.15em] uppercase text-foreground">
-          #{order.id.slice(-8).toUpperCase()}
-        </h1>
-        <Separator gold className="max-w-xs mx-auto mt-6" />
-      </div>
+        {/* Order header */}
+        <div className="border border-border p-8 mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
+            <div>
+              <p className="text-[10px] tracking-[0.3em] uppercase text-foreground/30 mb-2">Order</p>
+              <p className="text-sm font-mono tracking-widest text-foreground/60">
+                #{order.id.slice(-8).toUpperCase()}
+              </p>
+              <p className="text-[10px] text-foreground/25 mt-1">
+                Placed{" "}
+                {new Date(order.createdAt).toLocaleDateString("en-GB", {
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                })}
+              </p>
+            </div>
+            <Badge variant={statusVariant[order.status] ?? "secondary"}>{order.status}</Badge>
+          </div>
 
-      <div className="max-w-2xl mx-auto px-6 py-16">
-        {/* Status */}
-        <Card className="mb-8 text-center">
-          <CardContent className="p-6">
-            <Badge variant={STATUS_BADGE[order.status] ?? "secondary"} className="mb-4">
-              {order.status}
-            </Badge>
-            <p className="text-sm text-foreground/60 font-light leading-relaxed">
-              {STATUS_MESSAGES[order.status]}
-            </p>
-          </CardContent>
-        </Card>
+          <Separator gold className="mb-6" />
 
-        {/* Items */}
-        <Card className="mb-6">
-          <CardContent className="p-6 flex flex-col gap-5">
-            <p className="text-xs tracking-[0.4em] uppercase text-primary">Items Ordered</p>
-
+          {/* Items */}
+          <div className="flex flex-col divide-y divide-border">
             {order.items.map((item) => (
-              <div key={item.id} className="flex gap-4 items-center">
-                <div className="relative w-14 h-18 shrink-0 bg-charcoal">
-                  <Image
-                    src={item.product.images[0]}
-                    alt={item.product.name}
-                    fill
-                    className="object-cover"
-                  />
+              <div key={item.id} className="flex gap-4 py-5 items-center">
+                <div className="relative w-16 h-20 shrink-0 bg-charcoal">
+                  <Image src={item.product.images[0]} alt={item.product.name} fill className="object-cover" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-light tracking-widest uppercase text-foreground truncate">
+                  <Link
+                    href={`/shop/${item.product.slug}`}
+                    className="text-xs font-light tracking-[0.15em] uppercase text-foreground hover:text-primary transition-colors duration-200"
+                  >
                     {item.product.name}
-                  </p>
-                  <p className="text-[10px] text-foreground/40 mt-1">
-                    ৳ {item.price.toLocaleString()} × {item.quantity}
-                  </p>
+                  </Link>
+                  <p className="text-[10px] text-foreground/30 mt-1">Qty: {item.quantity}</p>
                 </div>
-                <span className="text-xs font-light shrink-0 text-primary">
+                <span className="text-xs font-light text-primary shrink-0">
                   ৳ {(item.price * item.quantity).toLocaleString()}
                 </span>
               </div>
             ))}
+          </div>
 
-            <Separator gold />
+          <Separator gold className="mt-2 mb-6" />
 
+          {/* Totals */}
+          <div className="flex flex-col gap-2 text-xs">
             {order.discount > 0 && (
-              <>
-                <div className="flex justify-between items-center">
-                  <span className="text-xs tracking-[0.2em] uppercase text-foreground/40">Subtotal</span>
-                  <span className="text-xs text-foreground/50">
-                    ৳ {(order.total + order.discount).toLocaleString()}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-xs tracking-[0.2em] uppercase text-primary/60">
-                    Discount{order.couponCode ? ` (${order.couponCode})` : ""}
-                  </span>
-                  <span className="text-xs text-primary">− ৳ {order.discount.toLocaleString()}</span>
-                </div>
-              </>
+              <div className="flex justify-between text-foreground/40">
+                <span>Discount {order.couponCode ? `(${order.couponCode})` : ""}</span>
+                <span className="text-primary">− ৳ {order.discount.toLocaleString()}</span>
+              </div>
             )}
-
             <div className="flex justify-between items-center">
-              <span className="text-xs tracking-[0.2em] uppercase text-foreground/60">Total</span>
-              <span className="text-xl font-extralight text-primary">
+              <span className="tracking-[0.2em] uppercase text-foreground/50">Total</span>
+              <span className="text-lg font-extralight tracking-widest text-primary">
                 ৳ {order.total.toLocaleString()}
               </span>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         {/* Delivery info */}
-        <Card className="mb-8">
-          <CardContent className="p-6">
-            <p className="text-xs tracking-[0.4em] uppercase text-primary mb-4">Delivery Info</p>
-            <div className="flex flex-col gap-2">
-              {[
-                { label: "Phone", value: order.phone },
-                { label: "Address", value: order.address },
-                ...(order.note ? [{ label: "Note", value: order.note }] : []),
-                {
-                  label: "Placed",
-                  value: new Date(order.createdAt).toLocaleDateString("en-GB", {
-                    day: "numeric", month: "long", year: "numeric",
-                    hour: "2-digit", minute: "2-digit",
-                  } as Intl.DateTimeFormatOptions),
-                },
-              ].map(({ label, value }) => (
-                <div key={label} className="flex gap-3">
-                  <span className="text-[10px] tracking-[0.2em] uppercase text-foreground/30 w-20 shrink-0">
-                    {label}
-                  </span>
-                  <span className="text-xs text-foreground/60">{value}</span>
-                </div>
-              ))}
+        <div className="border border-border p-6 flex flex-col gap-4">
+          <p className="text-[10px] tracking-[0.3em] uppercase text-primary">Delivery Details</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-light text-foreground/50">
+            <div>
+              <p className="text-[10px] tracking-[0.2em] uppercase text-foreground/25 mb-1">Phone</p>
+              <p>{order.phone ?? "—"}</p>
             </div>
-          </CardContent>
-        </Card>
-
-        <div className="flex gap-4">
-          <Button variant="outline" size="lg" className="flex-1" asChild>
-            <Link href="/account">My Orders</Link>
-          </Button>
-          <Button size="lg" className="flex-1" asChild>
-            <Link href="/shop">Shop More</Link>
-          </Button>
+            <div>
+              <p className="text-[10px] tracking-[0.2em] uppercase text-foreground/25 mb-1">Address</p>
+              <p className="leading-relaxed">{order.address ?? "—"}</p>
+            </div>
+            {order.note && (
+              <div className="sm:col-span-2">
+                <p className="text-[10px] tracking-[0.2em] uppercase text-foreground/25 mb-1">Note</p>
+                <p>{order.note}</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

@@ -1,140 +1,153 @@
-import type { Metadata } from "next";
-import Link from "next/link";
-import Image from "next/image";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { getSession, hasPermission } from "@/lib/auth";
-import { PERMISSIONS } from "@/lib/permissions";
-import { updateOrderStatus } from "@/actions/admin/orders";
-import type { OrderStatus } from "@prisma/client";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import UpdateOrderStatusForm from "./_UpdateOrderStatusForm";
 
-export const metadata: Metadata = { title: "Order Detail" };
-
-interface Props { params: Promise<{ id: string }> }
-
-const ALL_STATUSES: OrderStatus[] = ["PENDING", "CONFIRMED", "SHIPPED", "DELIVERED", "CANCELLED"];
-
-const STATUS_BADGE: Record<string, "warning" | "default" | "secondary" | "success" | "destructive"> = {
-  PENDING:   "warning",
+const STATUS_BADGE: Record<string, "default" | "secondary" | "destructive" | "outline" | "warning" | "success"> = {
+  PENDING: "warning",
   CONFIRMED: "default",
-  SHIPPED:   "secondary",
+  SHIPPED: "default",
   DELIVERED: "success",
   CANCELLED: "destructive",
 };
 
-export default async function AdminOrderDetailPage({ params }: Props) {
+interface Props {
+  params: Promise<{ id: string }>;
+}
+
+export default async function OrderDetailPage({ params }: Props) {
   const { id } = await params;
-  const session = await getSession();
-  const canUpdate = hasPermission(session, PERMISSIONS.ORDER_UPDATE);
 
   const order = await prisma.order.findUnique({
     where: { id },
     include: {
-      user: { select: { name: true, email: true, phone: true } },
-      items: { include: { product: true } },
+      user: { select: { name: true, email: true } },
+      items: {
+        include: {
+          product: { select: { name: true, images: true } },
+        },
+      },
     },
   });
 
   if (!order) notFound();
 
+  const subtotal = order.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
   return (
     <div className="p-8 max-w-4xl">
-      <div className="mb-8 flex items-start justify-between gap-4 flex-wrap">
+      {/* Header */}
+      <div className="flex items-start justify-between mb-10">
         <div>
-          <Button variant="ghost" size="xs" asChild className="mb-4 -ml-2">
-            <Link href="/admin/orders">← Back to Orders</Link>
-          </Button>
-          <p className="text-xs tracking-[0.4em] uppercase text-primary/60 mb-1">Order</p>
-          <h1 className="text-2xl font-extralight tracking-widest text-foreground font-mono">
-            #{order.id.slice(-8).toUpperCase()}
+          <p className="text-[10px] tracking-[0.4em] uppercase text-primary/60 mb-2">Commerce</p>
+          <h1 className="text-3xl font-extralight tracking-[0.2em] uppercase text-foreground">
+            Order #{order.id.slice(-8).toUpperCase()}
           </h1>
         </div>
-        <Badge variant={STATUS_BADGE[order.status] ?? "secondary"} className="self-start mt-10">
+        <Badge variant={STATUS_BADGE[order.status] ?? "default"} className="text-[10px] tracking-widest uppercase px-3 py-1.5">
           {order.status}
         </Badge>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        {/* Customer */}
-        <Card>
-          <CardContent className="p-5">
-            <p className="text-[10px] tracking-[0.3em] uppercase text-foreground/30 mb-3">Customer</p>
-            <p className="text-sm text-foreground/80">{order.user.name}</p>
-            <p className="text-xs text-foreground/40 mt-1">{order.user.email}</p>
-            {order.phone && <p className="text-xs text-foreground/40 mt-1">{order.phone}</p>}
-            {order.address && (
-              <p className="text-xs text-foreground/40 mt-2 leading-relaxed">{order.address}</p>
-            )}
-            {order.note && (
-              <p className="text-xs text-foreground/30 mt-2 italic">&ldquo;{order.note}&rdquo;</p>
-            )}
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        {/* Customer Info */}
+        <div className="bg-charcoal border border-border p-5">
+          <p className="text-[10px] tracking-[0.3em] uppercase text-foreground/30 mb-3">Customer</p>
+          <p className="text-sm font-light text-foreground mb-1">{order.user?.name ?? "—"}</p>
+          <p className="text-xs text-foreground/50">{order.user?.email ?? "—"}</p>
+          {order.phone && <p className="text-xs text-foreground/50 mt-1">{order.phone}</p>}
+        </div>
 
-        {/* Update Status */}
-        {canUpdate && (
-          <Card>
-            <CardContent className="p-5">
-              <p className="text-[10px] tracking-[0.3em] uppercase text-foreground/30 mb-3">
-                Update Status
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {ALL_STATUSES.map((s) => (
-                  <form key={s} action={updateOrderStatus.bind(null, order.id, s)}>
-                    <Button
-                      type="submit"
-                      variant={order.status === s ? "default" : "secondary"}
-                      size="xs"
-                      disabled={order.status === s}
-                    >
-                      {s}
-                    </Button>
-                  </form>
-                ))}
+        {/* Shipping */}
+        <div className="bg-charcoal border border-border p-5">
+          <p className="text-[10px] tracking-[0.3em] uppercase text-foreground/30 mb-3">Shipping Address</p>
+          <p className="text-xs font-light text-foreground/70 leading-relaxed whitespace-pre-line">
+            {order.address || "—"}
+          </p>
+        </div>
+
+        {/* Order Info */}
+        <div className="bg-charcoal border border-border p-5">
+          <p className="text-[10px] tracking-[0.3em] uppercase text-foreground/30 mb-3">Order Info</p>
+          <div className="space-y-1.5">
+            <div className="flex justify-between">
+              <span className="text-[10px] text-foreground/40 uppercase tracking-widest">Date</span>
+              <span className="text-xs text-foreground/70">
+                {new Date(order.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+              </span>
+            </div>
+            {order.couponCode && (
+              <div className="flex justify-between">
+                <span className="text-[10px] text-foreground/40 uppercase tracking-widest">Coupon</span>
+                <span className="text-xs font-mono text-primary/70">{order.couponCode}</span>
               </div>
-            </CardContent>
-          </Card>
-        )}
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* Items */}
-      <Card>
-        <CardHeader className="px-5 py-4 border-b border-border">
-          <p className="text-[10px] tracking-[0.3em] uppercase text-foreground/30">
-            Order Items ({order.items.length})
-          </p>
-        </CardHeader>
-        <CardContent className="p-0 divide-y divide-border">
-          {order.items.map((item) => (
-            <div key={item.id} className="flex items-center gap-4 px-5 py-4">
-              {item.product.images[0] && (
-                <div className="w-12 h-14 relative bg-obsidian shrink-0 overflow-hidden">
-                  <Image src={item.product.images[0]} alt={item.product.name} fill className="object-cover" />
-                </div>
-              )}
-              <div className="flex-1 min-w-0">
-                <p className="text-sm text-foreground/80 font-light">{item.product.name}</p>
-                <p className="text-xs text-foreground/30 mt-0.5">Qty: {item.quantity}</p>
-              </div>
-              <div className="text-right shrink-0">
-                <p className="text-sm text-primary/70">৳ {(item.price * item.quantity).toLocaleString()}</p>
-                <p className="text-[10px] text-foreground/25">৳ {item.price.toLocaleString()} ea.</p>
-              </div>
-            </div>
-          ))}
-        </CardContent>
-        <div className="flex justify-end items-center gap-4 px-5 py-4 border-t border-border">
-          <span className="text-xs tracking-[0.2em] uppercase text-foreground/30">Total</span>
-          <span className="text-lg font-extralight text-primary">৳ {order.total.toLocaleString()}</span>
+      {/* Note */}
+      {order.note && (
+        <div className="bg-charcoal border border-border p-5 mb-8">
+          <p className="text-[10px] tracking-[0.3em] uppercase text-foreground/30 mb-2">Customer Note</p>
+          <p className="text-xs font-light text-foreground/60 italic">{order.note}</p>
         </div>
-      </Card>
+      )}
 
-      <p className="text-[10px] text-foreground/20 mt-4">
-        Placed {new Date(order.createdAt).toLocaleString("en-GB", { dateStyle: "long", timeStyle: "short" })}
-      </p>
+      {/* Items */}
+      <div className="mb-8">
+        <p className="text-[10px] tracking-[0.3em] uppercase text-foreground/40 mb-4">Order Items</p>
+        <div className="border border-border">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-border bg-charcoal">
+                <th className="text-left px-4 py-3 text-[10px] tracking-[0.2em] uppercase text-foreground/30 font-normal">Product</th>
+                <th className="text-left px-4 py-3 text-[10px] tracking-[0.2em] uppercase text-foreground/30 font-normal">Qty</th>
+                <th className="text-left px-4 py-3 text-[10px] tracking-[0.2em] uppercase text-foreground/30 font-normal">Unit Price</th>
+                <th className="text-left px-4 py-3 text-[10px] tracking-[0.2em] uppercase text-foreground/30 font-normal">Subtotal</th>
+              </tr>
+            </thead>
+            <tbody>
+              {order.items.map((item) => (
+                <tr key={item.id} className="border-b border-border last:border-0 bg-charcoal/50">
+                  <td className="px-4 py-3 text-xs font-light text-foreground/80">
+                    {item.product?.name ?? "—"}
+                  </td>
+                  <td className="px-4 py-3 text-xs font-light text-foreground/60">{item.quantity}</td>
+                  <td className="px-4 py-3 text-xs font-light text-foreground/60">৳{item.price.toLocaleString()}</td>
+                  <td className="px-4 py-3 text-xs font-light text-foreground/80">
+                    ৳{(item.price * item.quantity).toLocaleString()}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Totals */}
+        <div className="border-x border-b border-border bg-charcoal p-4 flex flex-col items-end gap-1.5">
+          <div className="flex gap-8">
+            <span className="text-[10px] tracking-[0.2em] uppercase text-foreground/30">Subtotal</span>
+            <span className="text-xs text-foreground/60">৳{subtotal.toLocaleString()}</span>
+          </div>
+          {order.discount > 0 && (
+            <div className="flex gap-8">
+              <span className="text-[10px] tracking-[0.2em] uppercase text-foreground/30">Discount</span>
+              <span className="text-xs text-green-400/70">−৳{order.discount.toLocaleString()}</span>
+            </div>
+          )}
+          <div className="flex gap-8 pt-1.5 border-t border-border mt-1">
+            <span className="text-[10px] tracking-[0.2em] uppercase text-foreground/50">Total</span>
+            <span className="text-sm font-light text-foreground">৳{order.total.toLocaleString()}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Status Update */}
+      <div className="bg-charcoal border border-border p-6">
+        <p className="text-[10px] tracking-[0.3em] uppercase text-foreground/30 mb-4">Update Status</p>
+        <UpdateOrderStatusForm orderId={order.id} currentStatus={order.status} />
+      </div>
     </div>
   );
 }

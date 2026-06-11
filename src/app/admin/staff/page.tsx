@@ -1,19 +1,12 @@
-import type { Metadata } from "next";
-import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { getSession } from "@/lib/auth";
+import { getSession, isSuperAdmin } from "@/lib/auth";
+import Link from "next/link";
 import { deleteStaff } from "@/actions/admin/staff";
 import DeleteButton from "@/components/admin/DeleteButton";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Plus } from "lucide-react";
-
-export const metadata: Metadata = { title: "Staff" };
 
 export default async function AdminStaffPage() {
   const session = await getSession();
+  const superAdmin = isSuperAdmin(session);
 
   const staff = await prisma.user.findMany({
     where: { role: { in: ["ADMIN", "SUPER_ADMIN"] } },
@@ -23,95 +16,88 @@ export default async function AdminStaffPage() {
 
   return (
     <div className="p-8">
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-start justify-between mb-10">
         <div>
-          <p className="text-xs tracking-[0.4em] uppercase text-primary/60 mb-1">Administration</p>
-          <h1 className="text-2xl font-extralight tracking-widest text-foreground">Staff Members</h1>
+          <p className="text-[10px] tracking-[0.4em] uppercase text-primary/60 mb-2">Administration</p>
+          <h1 className="text-3xl font-extralight tracking-[0.2em] uppercase text-foreground">Staff</h1>
         </div>
-        <Button asChild size="sm" className="gap-2">
-          <Link href="/admin/staff/new">
-            <Plus className="h-3.5 w-3.5" />
-            Add Staff
+        {superAdmin && (
+          <Link
+            href="/admin/staff/new"
+            className="px-5 py-2.5 bg-primary text-primary-foreground text-[11px] tracking-[0.2em] uppercase hover:bg-primary/80 transition-colors"
+          >
+            + New Staff
           </Link>
-        </Button>
+        )}
       </div>
 
-      <div className="grid gap-4">
-        {staff.map((member) => {
-          const isSelf = member.id === session?.userId;
-          const isSuperAdmin = member.role === "SUPER_ADMIN";
-          const permCount = isSuperAdmin ? "All" : (member.adminRole?.permissions.length ?? 0).toString();
-
-          return (
-            <Card key={member.id}>
-              <CardContent className="p-5 flex items-center gap-5 flex-wrap">
-                <Avatar className="w-10 h-10 rounded-none shrink-0">
-                  <AvatarFallback
-                    className={`rounded-none text-sm font-medium ${
-                      isSuperAdmin ? "bg-primary text-primary-foreground" : "bg-accent text-primary"
-                    }`}
-                  >
-                    {member.name.charAt(0).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <p className="text-sm text-foreground/80 font-light">{member.name}</p>
-                    {isSelf && <Badge variant="outline">You</Badge>}
-                  </div>
-                  <p className="text-xs text-foreground/30 mt-0.5">{member.email}</p>
-                </div>
-
-                <div className="flex items-center gap-6">
-                  <div className="text-center">
-                    <p className="text-[10px] tracking-[0.2em] uppercase text-foreground/25 mb-1">Role</p>
-                    <Badge variant={isSuperAdmin ? "default" : "secondary"}>
-                      {isSuperAdmin ? "Super Admin" : (member.adminRole?.title ?? "Admin")}
-                    </Badge>
-                  </div>
-
-                  <div className="text-center">
-                    <p className="text-[10px] tracking-[0.2em] uppercase text-foreground/25 mb-1">Permissions</p>
-                    <p className="text-sm text-foreground/50">{permCount}</p>
-                  </div>
-
-                  <div className="text-center">
-                    <p className="text-[10px] tracking-[0.2em] uppercase text-foreground/25 mb-1">Since</p>
-                    <p className="text-xs text-foreground/30">
-                      {new Date(member.createdAt).toLocaleDateString("en-GB", {
-                        month: "short", year: "numeric",
-                      })}
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    {!isSelf && (
-                      <Button variant="secondary" size="xs" asChild>
-                        <Link href={`/admin/staff/${member.id}`}>Edit</Link>
-                      </Button>
+      <div className="border border-border overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-border bg-charcoal">
+              <th className="text-left px-4 py-3 text-[10px] tracking-[0.2em] uppercase text-foreground/30 font-normal">Name</th>
+              <th className="text-left px-4 py-3 text-[10px] tracking-[0.2em] uppercase text-foreground/30 font-normal">Email</th>
+              <th className="text-left px-4 py-3 text-[10px] tracking-[0.2em] uppercase text-foreground/30 font-normal">Title</th>
+              <th className="text-left px-4 py-3 text-[10px] tracking-[0.2em] uppercase text-foreground/30 font-normal">Role</th>
+              <th className="text-left px-4 py-3 text-[10px] tracking-[0.2em] uppercase text-foreground/30 font-normal">Permissions</th>
+              {superAdmin && (
+                <th className="text-left px-4 py-3 text-[10px] tracking-[0.2em] uppercase text-foreground/30 font-normal">Actions</th>
+              )}
+            </tr>
+          </thead>
+          <tbody>
+            {staff.map((member) => {
+              const isSelf = session?.userId === member.id;
+              const boundDelete = deleteStaff.bind(null, member.id);
+              return (
+                <tr key={member.id} className="border-b border-border last:border-0 hover:bg-white/2 transition-colors bg-charcoal/50">
+                  <td className="px-4 py-3">
+                    <p className="text-xs font-light text-foreground/80">{member.name}</p>
+                    {isSelf && (
+                      <span className="text-[9px] tracking-widest uppercase text-primary/50">You</span>
                     )}
-                    {!isSelf && !isSuperAdmin && (
-                      <DeleteButton
-                        action={deleteStaff.bind(null, member.id)}
-                        confirmMessage={`Remove ${member.name} from staff?`}
-                        label="Remove"
-                      />
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-
-        {staff.length === 0 && (
-          <Card>
-            <CardContent className="p-10 text-center text-foreground/20 text-xs tracking-[0.2em] uppercase">
-              No staff members found
-            </CardContent>
-          </Card>
-        )}
+                  </td>
+                  <td className="px-4 py-3 text-xs font-light text-foreground/60">{member.email}</td>
+                  <td className="px-4 py-3 text-xs font-light text-foreground/50">{member.adminRole?.title ?? "—"}</td>
+                  <td className="px-4 py-3">
+                    <span className={`text-[10px] tracking-widest uppercase ${member.role === "SUPER_ADMIN" ? "text-primary" : "text-foreground/50"}`}>
+                      {member.role === "SUPER_ADMIN" ? "Super Admin" : "Admin"}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-xs font-light text-foreground/40">
+                    {member.role === "SUPER_ADMIN" ? "All" : member.adminRole?.permissions.length ?? 0}
+                  </td>
+                  {superAdmin && (
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <Link
+                          href={`/admin/staff/${member.id}`}
+                          className="text-[10px] tracking-[0.15em] uppercase text-primary hover:text-primary/70 transition-colors px-3 py-1.5 border border-primary/30 hover:border-primary/60"
+                        >
+                          Edit
+                        </Link>
+                        {!isSelf && (
+                          <DeleteButton
+                            action={boundDelete}
+                            confirmMessage={`Remove "${member.name}" from staff? This will delete their account.`}
+                            label="Delete"
+                          />
+                        )}
+                      </div>
+                    </td>
+                  )}
+                </tr>
+              );
+            })}
+            {staff.length === 0 && (
+              <tr>
+                <td colSpan={superAdmin ? 6 : 5} className="px-4 py-12 text-center text-xs text-foreground/30 tracking-widest uppercase bg-charcoal/50">
+                  No staff members found
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
   );

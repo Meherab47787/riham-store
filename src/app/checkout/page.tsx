@@ -1,7 +1,7 @@
-import type { Metadata } from "next";
+import { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { redirect } from "next/navigation";
 import CheckoutClient from "@/components/checkout/CheckoutClient";
 
 export const metadata: Metadata = { title: "Checkout" };

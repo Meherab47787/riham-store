@@ -105,13 +105,14 @@ export default function AdminSidebar({ session }: SidebarProps) {
           </div>
         </div>
         <Separator className="mb-3" />
-        <Link
-          href="/"
+        <button
+          type="button"
+          onClick={() => { window.location.href = "/"; }}
           className="flex items-center gap-2 text-[10px] tracking-[0.15em] uppercase text-foreground/30 hover:text-primary transition-colors"
         >
           <ArrowLeft className="w-3 h-3" />
           Back to Store
-        </Link>
+        </button>
       </div>
     </aside>
   );
